@@ -42,7 +42,7 @@
    
      ```bash
      ./configure --enable-cxx 
-     make
+     make -j12
      make check
      make install
      ```
