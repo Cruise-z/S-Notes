@@ -4,8 +4,8 @@
 
 > **参考：**
 >
-> -   [萤火工场·CEK8903飞腾派软件开发手册-V1.0.pdf](.assets\萤火工场·CEK8903飞腾派软件开发手册-V1.0.pdf) 
-> -   [原理图cek8902_v3_sch.pdf](.assets\原理图cek8902_v3_sch.pdf) 
+> -    [CEK8903萤火工场·飞腾派软件开发手册-V1.0.pdf](.assets\CEK8903萤火工场·飞腾派软件开发手册-V1.0.pdf) 
+> -    [CEK8902原理图_v3_sch.pdf](.assets\CEK8902原理图_v3_sch.pdf) 
 
 
 
