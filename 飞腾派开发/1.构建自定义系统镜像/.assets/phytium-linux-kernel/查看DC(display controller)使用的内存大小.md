@@ -1,0 +1,1 @@
+cat /sys/kernel/debug/dri/0/mem_state
