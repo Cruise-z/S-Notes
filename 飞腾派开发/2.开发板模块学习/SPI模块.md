@@ -13,15 +13,15 @@
 
 ### 方法
 
+#### 修改并替换设备树
+
 - 编译生成的内核位于：`phytium-pi-os/output/build/linux-custom/`目录下：
 
   - `Image`文件位于内核目录下的`arch/arm64/boot`目录内
   
   - 设备树文件位于内核目录下的`arch/arm64/boot/dts/phytium`目录内
   
-    修改`.dts`：打开设备树`spidev0`的`status`为`okay`，编译后更新设备树，就能获得一个模拟的外设：
-  
-    ![image-20240129161508794](./SPI%E6%A8%A1%E5%9D%97.assets/image-20240129161508794.png)
+    修改`.dts`：打开设备树`spidev0`的`status`为`okay`，编译后更新设备树，就能获得一个模拟的外设：![image-20240129161508794](./SPI%E6%A8%A1%E5%9D%97.assets/image-20240129161508794.png)
   
 - 根据更改的`.dts`文件编译出新的`.dtb`文件：
 
@@ -56,16 +56,74 @@
 
     即可生成新的设备树二进制(`.dtb`)文件。
 
-  - 生成的设备树二进制文件位于内核目录下的`arch/arm64/boot/dts/phytium`文件夹内：![image-20240131101456428](./SPI%E6%A8%A1%E5%9D%97.assets/image-20240131101456428.png)
+- 将**内核映像**以及**新的设备树文件**拷贝到`/boot`目录下：
 
-- 将其拷贝到`/boot`目录下，参考 [编译内核.md](../1.构建自定义系统镜像/编译内核.md) 中`替换内核`方法更改`uboot`启动配置加载新的设备树
+  - 内核映像位于：内核目录下的`arch/arm64/boot/Image`
+  - 生成的设备树二进制文件位于内核目录下的`arch/arm64/boot/dts/phytium`文件夹内：![image-20240131101456428](./SPI%E6%A8%A1%E5%9D%97.assets/image-20240131101456428.png)
+  
+- 加载新的设备树：
+
+  > 参考 [编译内核.md](../1.构建自定义系统镜像/编译内核.md) 中`替换内核`方法更改`uboot`启动配置加载新的设备树
 
   - 这是替换前的`uboot`配置参数：<img src="./SPI%E6%A8%A1%E5%9D%97.assets/image-20240125170955956.png" alt="image-20240125170955956" style="zoom:50%;" />
 
   - 修改`bootcmd`参数：
-
-    ```bash
-    E2000# setenv bootcmd 'mmc dev 0; mmc read 0x90000000 0x2000 0x10000; ext4load mmc 0:1 0x90100000 boot/phytiumpi_firefly.dtb; bootm 0x90000000 – 0x90100000#phytium;';
-    ```
-
+  
+    将内核映像以及新有的设备树加载之后再启动：
     
+    ```bash
+    E2000# setenv bootcmd 'ext4load mmc 0:1 0x90100000 boot/Image; ext4load mmc 0:1 0x90000000 boot/phytiumpi_firefly.dtb; booti 0x90100000 – 0x90000000#phytium;';
+    ```
+    
+    > 1. **`ext4load mmc 0:1 0x90100000 boot/Image;`：**
+    >    - 从 MMC 存储设备的第一个分区（`mmc 0:1`）加载名为 `Image` 的文件到内存地址 `0x90100000`。
+    >    - 这通常是加载 Linux 内核映像的步骤。
+    > 2. **`ext4load mmc 0:1 0x90000000 boot/phytiumpi_firefly.dtb;`：**
+    >    - 从 MMC 存储设备的第一个分区（`mmc 0:1`）加载名为 `phytiumpi_firefly.dtb` 的设备树文件到内存地址 `0x90000000`。
+    >    - 这是加载设备树文件的步骤，该文件描述了硬件设备和内核参数。
+    > 3. **`booti 0x90100000 – 0x90000000#phytium;`：**
+    >    - 使用 `booti` 命令引导 Linux 内核。
+    >    - 指定内核的加载地址为 `0x90100000`，设备树的加载地址为 `0x90000000`。
+    >    - `#phytium` 可能是一个注释，表示特定于 Phytium 的信息。
+    >
+    
+  - 保存`bootcmd`参数：
+  
+    ```shell
+    E2000# saveenv;
+    ```
+  
+  - 重新启动即可
+
+
+
+#### 生成spi测试工具并测试
+
+- `spidev_test`的源码在内核目录下的 `tools/spi/spidev_test.c`
+
+  在本目录下执行`make`命令：
+
+  ![image-20240203100219206](./SPI%E6%A8%A1%E5%9D%97.assets/image-20240203100219206.png)
+
+  将这个文件拷贝到开发板平台下即可。
+
+- 找到spi模块的接收和发送引脚：
+
+  参考：[CEK8902原理图_v3_sch.pdf](.assets/CEK8902原理图_v3_sch.pdf) ：![image-20240203101227959](./SPI%E6%A8%A1%E5%9D%97.assets/image-20240203101227959.png)
+
+- 在开发板平台上测试spi：
+
+  在spi测试工具所在目录下执行如下命令运行测试工具：
+
+  ```shell
+  sudo ./spidev_test -D /dev/spidev0.0 -v
+  ```
+
+  - 短接收发引脚时：![image-20240203131624369](./SPI%E6%A8%A1%E5%9D%97.assets/image-20240203131624369.png)
+  
+    `RX`收到的数据和`TX`一样，说明`SPI`自发自收正常；通过示波器也能看到`SPI`数据传送波形 。
+  
+  - 断开`SPI`的`TX` `RX` ，再运行测试`RX`收不到`TX`的数据：![image-20240203132131916](./SPI%E6%A8%A1%E5%9D%97.assets/image-20240203132131916.png)
+  
+    
+
