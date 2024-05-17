@@ -34,7 +34,11 @@
 
     说明更新问题与此问题无关。。。
     
-    在联想电脑管家的工具箱中关闭**锁屏壁纸功能**即可解决这个问题：![image-20240517173739662](./windows%E7%B3%BB%E7%BB%9F%E9%97%AE%E9%A2%98%E6%B1%87%E6%80%BB.assets/image-20240517173739662.png)
+    在联想电脑管家的工具箱中关闭**锁屏壁纸功能**即可解决这个问题：
+    
+    > 参考：https://www.bilibili.com/read/cv23572864/#:~:text=%E6%9C%97%E5%B7%9E%E5%8F%B8%E9%A9%AC,%E6%8A%8A%E5%A3%81%E7%BA%B8%E5%85%B3%E6%8E%89
+    
+    ![image-20240517173739662](./windows%E7%B3%BB%E7%BB%9F%E9%97%AE%E9%A2%98%E6%B1%87%E6%80%BB.assets/image-20240517173739662.png)
 
 - 执行方案3：**Reset Windows update cache and delete the content in SoftwareDistribution**
 
