@@ -1,4 +1,6 @@
-# windows系统更新问题
+# windows系统问题汇总
+
+## 更新问题
 
 ### windows更新失败提示`下载错误:0xca020007`：
 
@@ -72,6 +74,8 @@
   - Right-click on **WuReset.bat** and select **Run as administrator**.
   - Click **Yes** on the UAC pop-up and press any key to start the reset command.
   - Exit the command prompt and try once more to receive the update.
+
+## 网络问题
 
 ### Windows 11设置让外部访问优先使用无线/有线网络？
 
