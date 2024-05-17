@@ -30,9 +30,11 @@
     DISM /Online /Cleanup-Image /RestoreHealth /Source:C:\RepairSource\Windows /LimitAccess
     ```
 
-  - 方案1执行完后重启并未解决问题。。。
+  - 方案1执行完后重启并未解决该更新问题：
 
-    在联想电脑管家的工具箱中关闭锁屏壁纸功能。
+    说明更新问题与此问题无关。。。
+    
+    在联想电脑管家的工具箱中关闭**锁屏壁纸功能**即可解决这个问题：![image-20240517173739662](./windows%E7%B3%BB%E7%BB%9F%E9%97%AE%E9%A2%98%E6%B1%87%E6%80%BB.assets/image-20240517173739662.png)
 
 - 执行方案3：**Reset Windows update cache and delete the content in SoftwareDistribution**
 
