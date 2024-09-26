@@ -6,7 +6,7 @@
 
 ## ==ROP的执行过程示例：==
 
-![捕获1](G:\Personal_Inf\大学资料\笔记\pwn\stack_overflow\捕获1.PNG)
+![ROP](./2_解析ROP（返回导向编程）.assets/ROP.PNG)
 
 ------
 
@@ -982,11 +982,11 @@ vim -M file。
 
 利用溢出写入并执行多个函数时，需要不断使用pop_ret这样的gadget来平衡栈，进而达到目的。
 
-![捕获2](G:\Personal_Inf\大学资料\笔记\pwn\stack_overflow\捕获2.PNG)
+![平衡栈](./2_解析ROP（返回导向编程）.assets/平衡栈.PNG)
 
 ### 动态链接的过程：
 
-![捕获3](G:\Personal_Inf\大学资料\笔记\pwn\stack_overflow\捕获3.PNG)
+![动态链接](./2_解析ROP（返回导向编程）.assets/动态链接.PNG)
 
 - ### 用一个实例来看一下：
 
