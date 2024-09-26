@@ -38,7 +38,7 @@
     
     > 参考：https://www.bilibili.com/read/cv23572864/#:~:text=%E6%9C%97%E5%B7%9E%E5%8F%B8%E9%A9%AC,%E6%8A%8A%E5%A3%81%E7%BA%B8%E5%85%B3%E6%8E%89
     >
-    > ==**注：**==联想锁屏功能现转移至：`联想应用商店`$\rightarrow$`设置中心`$\rightarrow$`壁纸设置处`
+    > ==**注：**==联想锁屏功能现转移至：`联想应用商店` $\rightarrow$ `设置中心` $\rightarrow$ `壁纸设置处`
     
     ![image-20240517173739662](./windows%E7%B3%BB%E7%BB%9F%E9%97%AE%E9%A2%98%E6%B1%87%E6%80%BB.assets/image-20240517173739662.png)<img src="./windows%E7%B3%BB%E7%BB%9F%E9%97%AE%E9%A2%98%E6%B1%87%E6%80%BB.assets/image-20240926155010551.png" alt="image-20240926155010551"  />
 
