@@ -21,14 +21,18 @@
 
     > 参考：https://www.bilibili.com/read/cv23572864/
 
-    依次执行下面的命令：
+    - 卡住半个小时左右很正常，先耐心等待即可！！！
 
-    ```bash
-    dism /online /cleanup-image /restorehealth 
-    sfc /scannow 
-    DISM /Online /Cleanup-Image /StartComponentCleanup
-    DISM /Online /Cleanup-Image /RestoreHealth /Source:C:\RepairSource\Windows /LimitAccess
-    ```
+    - 进度实在是不动了就关机重启；
+
+    - 依次执行下面的命令：
+
+      ```bash
+      dism /online /cleanup-image /restorehealth 
+      sfc /scannow 
+      DISM /Online /Cleanup-Image /StartComponentCleanup
+      DISM /Online /Cleanup-Image /RestoreHealth /Source:C:\RepairSource\Windows /LimitAccess
+      ```
 
   - 方案1执行完后重启并未解决该更新问题：
 
