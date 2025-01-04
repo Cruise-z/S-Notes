@@ -502,7 +502,8 @@ vim -M file。
 
 ### `ret2shellcode`$\leftrightarrow$`DEP`
 
-<img src="./2_解析ROP（返回导向编程）.assets/DEP.png" alt="DEP" style="zoom:25%;" /><img src="./2_解析ROP（返回导向编程）.assets/DEP_hardware.png" alt="DEP_hardware" style="zoom:25%;" />
+| <img src="./2_解析ROP（返回导向编程）.assets/DEP.png" alt="DEP" style="zoom:25%;" /> | <img src="./2_解析ROP（返回导向编程）.assets/DEP_hardware.png" alt="DEP_hardware" style="zoom:25%;" /> |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
 
 开启`DEP`(数据执行保护)后：
 对于`ret2shellcode`这样的将恶意代码注入到内存中执行的操作，为相应的内存段开启`DEP`可以解决这个问题
@@ -621,7 +622,8 @@ vim -M file。
 | **主要优势** | 增加所有内存区域的随机化<br />【堆、栈、动态库等】 | 实现**ELF 可执行程序加载至内存镜像的相应段**的地址随机化<br />【代码段、数据段、BSS段等】 |
 | **适用条件** | 操作系统必须支持 ASLR                              | 编译时需启用 PIE 支持                                        |
 
-<img src="./2_解析ROP（返回导向编程）.assets/ASLR.png" alt="ASLR" style="zoom:25%;" /><img src="./2_解析ROP（返回导向编程）.assets/ASLR1.png" alt="ASLR1" style="zoom:25%;" />
+| <img src="./2_解析ROP（返回导向编程）.assets/ASLR.png" alt="ASLR" style="zoom:25%;" /> | <img src="./2_解析ROP（返回导向编程）.assets/ASLR1.png" alt="ASLR1" style="zoom:25%;" /> |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
 
 注意：ASLR随机化的最小单元是内存页！！！（熵值通常为12）
 
@@ -639,9 +641,11 @@ vim -M file。
 
 ### `ret2xxx`$\leftrightarrow$`canary`
 
-<img src="./2_解析ROP（返回导向编程）.assets/stack_canary.png" alt="stack_canary" style="zoom:33%;" />
+| <img src="./2_解析ROP（返回导向编程）.assets/stack_canary.png" alt="stack_canary" style="zoom:33%;" /> |
+| :----------------------------------------------------------: |
 
-<img src="./2_解析ROP（返回导向编程）.assets/stack_canary1.png" alt="stack_canary1" style="zoom:25%;" /><img src="./2_解析ROP（返回导向编程）.assets/stack_canary2.png" alt="stack_canary2" style="zoom:25%;" />
+| <img src="./2_解析ROP（返回导向编程）.assets/stack_canary1.png" alt="stack_canary1" style="zoom:25%;" /> | <img src="./2_解析ROP（返回导向编程）.assets/stack_canary2.png" alt="stack_canary2" style="zoom:25%;" /> |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
 
 
 
