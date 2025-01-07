@@ -23,21 +23,481 @@
 
 很有可能根据经典的CWE漏洞类型来设计题
 
-#### CWE-787
+以下是隐蔽性更强的**CWE漏洞示例**及修复方法：
 
-out-of-bounds write
+---
 
-#### CWE-416
+#### CWE-787: 
 
-UAF
+**Out-of-Bounds Write**
 
-#### CWE-78
+##### 漏洞代码：
+```c
+#include <stdio.h>
+#include <stdlib.h>
 
-OS Command Injection
+void updateArray(int *arr, int size) {
+    for (int i = 0; i <= size; i++) { // 边界条件错误
+        arr[i] = i * 2; // 越界写入最后一个索引之外
+    }
+}
 
-#### CWE-134
+int main() {
+    int *array = (int *)malloc(5 * sizeof(int));
+    if (!array) return 1;
 
-格式化字符串漏洞
+    updateArray(array, 5); // size参数比实际大小多1
+    free(array);
+    return 0;
+}
+```
+
+##### 修复方法：
+确保边界检查正确，避免越界写。
+```c
+#include <stdio.h>
+#include <stdlib.h>
+
+void updateArray(int *arr, int size) {
+    for (int i = 0; i < size; i++) { // 修复条件
+        arr[i] = i * 2;
+    }
+}
+
+int main() {
+    int *array = (int *)malloc(5 * sizeof(int));
+    if (!array) return 1;
+
+    updateArray(array, 5);
+    free(array);
+    return 0;
+}
+```
+
+---
+
+#### CWE-416: 
+
+**Use After Free (UAF)**
+
+##### 漏洞代码：
+```c
+#include <stdio.h>
+#include <stdlib.h>
+
+void modifyArray(int *arr) {
+    free(arr); // 内存释放
+    arr[0] = 42; // UAF：使用已释放的内存
+}
+
+int main() {
+    int *array = (int *)malloc(10 * sizeof(int));
+    if (!array) return 1;
+
+    modifyArray(array); // array 被释放后仍然使用
+    free(array);
+    return 0;
+}
+```
+
+##### 修复方法：
+释放内存后将指针置为 `NULL`，并避免再次使用。
+```c
+#include <stdio.h>
+#include <stdlib.h>
+
+void modifyArray(int **arr) {
+    free(*arr);
+    *arr = NULL; // 置为 NULL，避免 UAF
+}
+
+int main() {
+    int *array = (int *)malloc(10 * sizeof(int));
+    if (!array) return 1;
+
+    modifyArray(&array); // 传递指针的地址
+    if (array) {
+        free(array);
+    }
+    return 0;
+}
+```
+
+---
+
+#### CWE-415: 
+
+**Double Free**
+
+##### 漏洞代码：
+```c
+#include <stdio.h>
+#include <stdlib.h>
+
+void freeMemory(int *arr) {
+    free(arr);
+}
+
+int main() {
+    int *array = (int *)malloc(10 * sizeof(int));
+    if (!array) return 1;
+
+    freeMemory(array); // 第一次释放
+    free(array);       // 第二次释放
+    return 0;
+}
+```
+
+##### 修复方法：
+确保释放指针后立即置为 `NULL`。
+```c
+#include <stdio.h>
+#include <stdlib.h>
+
+void freeMemory(int **arr) {
+    free(*arr);
+    *arr = NULL;
+}
+
+int main() {
+    int *array = (int *)malloc(10 * sizeof(int));
+    if (!array) return 1;
+
+    freeMemory(&array); // 避免双重释放
+    if (array) {
+        free(array);
+    }
+    return 0;
+}
+```
+
+---
+
+#### CWE-125: 
+
+**Out-of-Bounds Read**
+
+##### 漏洞代码：
+```c
+#include <stdio.h>
+
+int getValue(int *arr, int size, int index) {
+    return arr[index]; // 未检查索引是否合法
+}
+
+int main() {
+    int data[5] = {1, 2, 3, 4, 5};
+    printf("Value: %d\n", getValue(data, 5, 6)); // 索引越界
+    return 0;
+}
+```
+
+##### 修复方法：
+添加索引范围检查。
+```c
+#include <stdio.h>
+
+int getValue(int *arr, int size, int index) {
+    if (index < 0 || index >= size) {
+        printf("Index out of bounds\n");
+        return -1;
+    }
+    return arr[index];
+}
+
+int main() {
+    int data[5] = {1, 2, 3, 4, 5};
+    printf("Value: %d\n", getValue(data, 5, 6));
+    return 0;
+}
+```
+
+---
+
+#### CWE-78: 
+
+**OS Command Injection**
+
+##### 漏洞代码：
+```c
+#include <stdio.h>
+#include <stdlib.h>
+
+void runCommand(char *input) {
+    char command[128];
+    snprintf(command, sizeof(command), "ls %s", input); // 未验证输入
+    system(command); // 命令注入漏洞
+}
+
+int main() {
+    char userInput[50];
+    printf("Enter directory: ");
+    scanf("%49s", userInput);
+    runCommand(userInput);
+    return 0;
+}
+```
+
+##### 修复方法：
+严格验证输入，或者避免直接使用 `system`。
+```c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+void runCommand(char *input) {
+    if (strpbrk(input, "&;|<>")) { // 检查危险字符
+        printf("Invalid input detected\n");
+        return;
+    }
+    char command[128];
+    snprintf(command, sizeof(command), "ls %s", input);
+    system(command);
+}
+
+int main() {
+    char userInput[50];
+    printf("Enter directory: ");
+    scanf("%49s", userInput);
+    runCommand(userInput);
+    return 0;
+}
+```
+
+---
+
+#### CWE-362: 
+
+**Race Condition**
+
+##### 漏洞代码：
+```c
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
+
+void writeFile() {
+    int fd = open("temp.txt", O_RDWR | O_CREAT, 0666);
+    if (fd < 0) {
+        perror("Open failed");
+        return;
+    }
+    sleep(2); // 模拟延迟，其他进程可能在此期间修改文件
+    write(fd, "Data", 4);
+    close(fd);
+}
+
+int main() {
+    writeFile();
+    return 0;
+}
+```
+
+##### 修复方法：
+使用文件锁定机制确保独占访问。
+
+> **`flock()` 的常用锁定模式：**
+>
+> | 锁定模式            | 描述                                                         |
+> | ------------------- | ------------------------------------------------------------ |
+> | `LOCK_EX`           | 独占锁：仅允许一个进程获得此锁，其他进程必须等待锁释放。     |
+> | `LOCK_SH`           | 共享锁：允许多个进程同时获得此锁，但不能与独占锁共存。       |
+> | `LOCK_UN`           | 解锁：释放当前进程持有的锁，允许其他进程访问文件。           |
+> | `LOCK_NB`（非阻塞） | 可与 `LOCK_EX` 或 `LOCK_SH` 一起使用，如果无法获取锁立即返回。 |
+>
+> **运行逻辑**
+>
+> 1. 加锁：
+>
+>    - ```c
+>      flock(fd, LOCK_EX | LOCK_NB)
+>      ```
+>
+>      - 如果成功，返回 `0`，程序继续运行。
+>      - 如果失败，返回 `-1`，并通过 `errno` 判断是否是由于文件已被锁定（`EWOULDBLOCK`）。
+>
+> 2. 解锁：
+>
+>    - ```c
+>      flock(fd, LOCK_UN)
+>      ```
+>
+>      - 成功返回 `0`。
+>      - 失败返回 `-1`，通常是因为文件描述符无效或文件已关闭。
+
+```c
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/file.h>
+
+void writeFile() {
+    int fd = open("temp.txt", O_RDWR | O_CREAT, 0666);
+    if (fd < 0) {
+        perror("Open failed");
+        return;
+    }
+    if (flock(fd, LOCK_EX) < 0) { // 文件锁定
+        perror("Lock failed");
+        close(fd);
+        return;
+    }
+    write(fd, "Data", 4);
+    flock(fd, LOCK_UN); // 释放锁
+    close(fd);
+}
+
+int main() {
+    writeFile();
+    return 0;
+}
+```
+
+---
+
+#### CWE-20: 
+
+**Improper Input Validation**
+
+##### 漏洞代码：
+```c
+#include <stdio.h>
+
+int divide(int a, int b) {
+    return a / b; // 未检查除数是否为0
+}
+
+int main() {
+    int x = 10, y = 0;
+    printf("Result: %d\n", divide(x, y)); // 崩溃
+    return 0;
+}
+```
+
+##### 修复方法：
+检查输入参数，避免无效操作。
+```c
+#include <stdio.h>
+
+int divide(int a, int b) {
+    if (b == 0) {
+        printf("Error: Division by zero\n");
+        return 0;
+    }
+    return a / b;
+}
+
+int main() {
+    int x = 10, y = 0;
+    printf("Result: %d\n", divide(x, y));
+    return 0;
+}
+```
+
+---
+
+#### CWE-134: 
+
+**Uncontrolled Format String**
+
+##### 漏洞代码：
+```c
+#include <stdio.h>
+
+void printMessage(char *msg) {
+    printf(msg); // 格式化字符串漏洞
+}
+
+int main() {
+    char input[50];
+    printf("Enter message: ");
+    scanf("%49s", input);
+    printMessage(input);
+    return 0;
+}
+```
+
+##### 修复方法：
+使用固定的格式化字符串。
+```c
+#include <stdio.h>
+
+void printMessage(char *msg) {
+    printf("%s", msg); // 修复：避免直接使用输入作为格式化字符串
+}
+
+int main() {
+    char input[50];
+    printf("Enter message: ");
+    scanf("%49s", input);
+    printMessage(input);
+    return 0;
+}
+```
+
+---
+
+#### CWE-190：
+
+**整数溢出或绕回 (Integer Overflow or Wraparound)**
+
+##### 漏洞代码：
+
+```c
+#include <stdio.h>
+#include <stdlib.h>
+
+int main() {
+    unsigned int size = 0xFFFFFFF0; // 大值接近上限
+    size += 16; // 触发整数溢出
+    printf("Allocated size: %u\n", size);
+
+    void *buffer = malloc(size); // 无效的内存分配
+    if (buffer == NULL) {
+        perror("Memory allocation failed");
+        return 1;
+    }
+    free(buffer);
+    return 0;
+}
+```
+
+##### 修复方法： 
+
+在操作前检查整数是否会溢出。
+
+```c
+#include <stdio.h>
+#include <stdlib.h>
+#include <limits.h>
+
+int main() {
+    unsigned int size = 0xFFFFFFF0;
+    if (size > UINT_MAX - 16) { // 检查溢出
+        printf("Integer overflow detected\n");
+        return 1;
+    }
+
+    size += 16;
+    printf("Allocated size: %u\n", size);
+
+    void *buffer = malloc(size);
+    if (buffer == NULL) {
+        perror("Memory allocation failed");
+        return 1;
+    }
+    free(buffer);
+    return 0;
+}
+```
+
+------
+
+#### 总结
+
+这些示例隐蔽性更强，通常以微妙的错误或疏漏为特点。例如错误的边界条件、输入验证不足、延迟操作带来的竞争问题等。修复方法通过添加边界检查、输入验证或同步机制解决问题，同时提高代码安全性。
 
 
 
@@ -115,7 +575,10 @@ OS Command Injection
 
 stride方法（六类威胁）
 
-漏洞和缺陷的区别
+> **漏洞和缺陷的区别**
+>
+> 漏洞是可被利用以达到攻击目的的缺陷
+> 但缺陷是程序未能按照设计规格或用户需求正确工作的问题，他不一定是漏洞
 
 ## P5：内存与类型安全
 
