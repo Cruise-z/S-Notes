@@ -1,0 +1,6 @@
+此处提供已配置好 PWN 环境的虚拟机磁盘镜像，使用 VMware 软件开箱即用
+
+Xubuntu.vmdk 为虚拟机的虚拟磁盘文件
+Xubuntu.vmx 为虚拟机配置文件，可直接用 VMware 软件打开，前提是已拥有 vmdk 文件
+
+系统版本：Xubuntu 20.04
