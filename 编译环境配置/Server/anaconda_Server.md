@@ -1,4 +1,4 @@
-# `Ubuntu`配置`Anaconda`
+# `Server`配置`Anaconda`
 
 > 参考：https://blog.csdn.net/qq_64671439/article/details/135293643
 
@@ -8,7 +8,7 @@
 
 ### 1. **安装 Conda（使用 Miniconda 或 Anaconda）**
 
-#### **Miniconda**（推荐，因为它更轻量）
+#### **Miniconda**（轻量）
 
 Miniconda 是一个轻量级的 Conda 安装包，包含 Conda 和一些必要的包，而不像 Anaconda 那样包括大量的科学计算库。
 
@@ -48,7 +48,7 @@ Miniconda 是一个轻量级的 Conda 安装包，包含 Conda 和一些必要�
 
    这样 Conda 就会被添加到你的环境变量中，允许你在命令行中使用 `conda` 命令。
 
-#### **Anaconda**（如果你需要完整的 Python 数据科学包）
+#### **Anaconda**（推荐）
 
 如果你更倾向于安装 **Anaconda**（包含更多预装的库，如 NumPy、Pandas、Matplotlib 等），你可以使用类似的步骤，只是下载和安装 Anaconda。
 
