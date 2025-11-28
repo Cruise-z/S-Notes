@@ -44,11 +44,9 @@ Public Sub RenumberCitationsAndSortReferences_BetweenMarkers()
 
     On Error Resume Next
     With rngBody
-        ' 解除正文中的所有域（交叉引用 / 引文等），变成普通文本
-        .Fields.Unlink
-        ' 删除正文中的所有超链接（只留文本）
+        .Fields.Unlink               ' 解除正文中的所有域
         For iHyper = .Hyperlinks.Count To 1 Step -1
-            .Hyperlinks(iHyper).Delete
+            .Hyperlinks(iHyper).Delete   ' 删除正文中的所有超链接
         Next iHyper
     End With
     On Error GoTo 0
@@ -60,19 +58,23 @@ Public Sub RenumberCitationsAndSortReferences_BetweenMarkers()
         Exit Sub
     End If
 
-    ' ---------- 第二步：按映射替换选区内所有 [x]
-    '                  正文部分设为上标，参考文献部分不设上标 ----------
-    Call ReplaceCitationsByMap(rngAll, dict)
+    ' ---------- 第二步：在整个选区按映射替换所有 [x]（只改文本，不动格式） ----------
+    Call ReplaceCitationsInRange(rngAll, dict)
 
-    ' ---------- 第三步：在参考文献区内按“块”排序（保留字符格式） ----------
-    Call SortReferenceBlocksByNumber(rngRefs)
+    ' ---------- 第三步：把正文部分的 [x] 设为上标 ----------
+    Call MakeBodyCitationsSuperscript(rngBody)
 
-    MsgBox "完成：正文解除域/链接 + 编号重排 + 参考文献排序（保留参考文献格式）。", vbInformation
+    ' ---------- 第四步：在参考文献区内按“块”排序（保留块内原有字符格式） ----------
+    Call SortReferenceBlocksByNumberWithFormat(rngRefs)
+
+    ' ---------- 第五步：保险起见，参考文献区内所有 [x] 统一取消上标 ----------
+    Call ForceNonSuperscriptInRefs(rngRefs)
+
+    MsgBox "完成：正文解除域/链接 + 编号重排 + 参考文献排序（正文为上标，参考文献标号为普通）。", vbInformation
 End Sub
 
 
 ' ===== 步骤1：建立编号映射 =====
-' 按 [数字] 在 rngAll 中出现的顺序，建立 原编号 -> 新编号(1,2,3,...) 的映射
 Private Sub BuildCitationMap(ByVal rngAll As Range, ByVal dict As Object)
     Dim rngFind As Range
     Dim token As String
@@ -104,34 +106,14 @@ Private Sub BuildCitationMap(ByVal rngAll As Range, ByVal dict As Object)
 End Sub
 
 
-' ===== 步骤2：根据映射替换选区内所有 [x]
-'              正文中的设为上标，参考文献部分不设上标 =====
-Private Sub ReplaceCitationsByMap(ByVal rngAll As Range, ByVal dict As Object)
-    Const REF_START As String = "<<<REF_START>>>"
-
+' ===== 步骤2：在给定范围内按映射替换所有 [x]（不动格式） =====
+Private Sub ReplaceCitationsInRange(ByVal rng As Range, ByVal dict As Object)
     Dim rngFind As Range
     Dim token As String
     Dim origNum As Long
     Dim newText As String
 
-    Dim rngMarker As Range
-    Dim refStartPos As Long
-
-    Set rngFind = rngAll.Duplicate
-
-    ' 找到参考文献起始标记的位置（如果不存在，则认为整个选区都是正文）
-    refStartPos = rngAll.End + 1
-    Set rngMarker = rngAll.Duplicate
-    With rngMarker.Find
-        .ClearFormatting
-        .Text = REF_START
-        .MatchWildcards = False
-        .MatchCase = False
-        .Wrap = wdFindStop
-    End With
-    If rngMarker.Find.Execute Then
-        refStartPos = rngMarker.Start
-    End If
+    Set rngFind = rng.Duplicate
 
     With rngFind.Find
         .ClearFormatting
@@ -148,14 +130,7 @@ Private Sub ReplaceCitationsByMap(ByVal rngAll As Range, ByVal dict As Object)
 
         If dict.Exists(origNum) Then
             newText = "[" & dict(origNum) & "]"
-            ' 换成新的编号文本
             rngFind.Text = newText
-            ' 参考文献之前（正文部分）设置为上标；参考文献及之后不改上标
-            If rngFind.Start < refStartPos Then
-                rngFind.Font.Superscript = True
-            Else
-                ' 不强行改为 False，保持参考文献区原有格式
-            End If
         End If
 
         rngFind.Collapse wdCollapseEnd
@@ -163,7 +138,29 @@ Private Sub ReplaceCitationsByMap(ByVal rngAll As Range, ByVal dict As Object)
 End Sub
 
 
-' ===== 步骤3：根据 <<<REF_START>>> 与 <<<REF_END>>> 确定参考文献区域 =====
+' ===== 步骤3：正文部分的 [x] 设为上标 =====
+Private Sub MakeBodyCitationsSuperscript(ByVal rngBody As Range)
+    Dim rngFind As Range
+
+    Set rngFind = rngBody.Duplicate
+
+    With rngFind.Find
+        .ClearFormatting
+        .Text = "\[[0-9]{1,3}\]"
+        .MatchWildcards = True
+        .Forward = True
+        .Wrap = wdFindStop
+        .Format = False
+    End With
+
+    Do While rngFind.Find.Execute
+        rngFind.Font.Superscript = True
+        rngFind.Collapse wdCollapseEnd
+    Loop
+End Sub
+
+
+' ===== 根据 <<<REF_START>>> 与 <<<REF_END>>> 确定参考文献区域 =====
 Private Function GetReferenceRangeBetweenMarkers(ByVal rngAll As Range) As Range
     Const REF_START As String = "<<<REF_START>>>"
     Const REF_END   As String = "<<<REF_END>>>"
@@ -209,11 +206,8 @@ Private Function GetReferenceRangeBetweenMarkers(ByVal rngAll As Range) As Range
 End Function
 
 
-' ===== 步骤4：按“块”排序参考文献（保留块内原有字符格式） =====
-' 块定义：
-'   - 以“段首（忽略前导空格）是 [数字]”的段落作为起点；
-'   - 从该段起点到下一条起点之间（或到 <<<REF_END>>> 前）为一条完整参考文献，可以包含多段。
-Private Sub SortReferenceBlocksByNumber(ByVal rngRefs As Range)
+' ===== 步骤4：按“块”排序参考文献（通过临时文档保留块内原有字符格式） =====
+Private Sub SortReferenceBlocksByNumberWithFormat(ByVal rngRefs As Range)
     Dim paras As Paragraphs
     Dim i As Long, j As Long, refCount As Long
     Dim pRng As Range
@@ -222,18 +216,19 @@ Private Sub SortReferenceBlocksByNumber(ByVal rngRefs As Range)
 
     Dim arrNums() As Long
     Dim arrStarts() As Long
-    Dim arrFmt() As Variant
+    Dim arrEnds() As Long
+    Dim arrIdx() As Long
 
     Dim startPos As Long, endPos As Long
-    Dim itemRng As Range
-    Dim tmpNum As Long
-    Dim tmpFmt As Variant
+    Dim tmp As Long
 
-    Dim newRng As Range
+    Dim tmpDoc As Document
+    Dim tmpRng As Range
+    Dim blockRng As Range
 
     Set paras = rngRefs.Paragraphs
 
-    ' 先找出所有“以 [数字] 开头的段落”作为块起点
+    ' 找出所有“段首以 [数字] 开头”的段落作为块起点
     refCount = 0
     For i = 1 To paras.Count
         Set pRng = paras(i).Range.Duplicate
@@ -259,6 +254,7 @@ Private Sub SortReferenceBlocksByNumber(ByVal rngRefs As Range)
                     refCount = refCount + 1
                     ReDim Preserve arrNums(1 To refCount)
                     ReDim Preserve arrStarts(1 To refCount)
+                    ReDim Preserve arrEnds(1 To refCount)
 
                     arrNums(refCount) = CLng(numStr)
                     arrStarts(refCount) = pRng.Start
@@ -269,46 +265,73 @@ Private Sub SortReferenceBlocksByNumber(ByVal rngRefs As Range)
 
     If refCount <= 1 Then Exit Sub   ' 0 或 1 条，不需要排序
 
-    ' 把每一块 [x] ~ 下一个起点/结束 的“带格式文本”取出来
-    ReDim arrFmt(1 To refCount)
+    ' 计算每个块的结束位置：下一个起点，或参考文献区域的结束
     For i = 1 To refCount
-        startPos = arrStarts(i)
         If i < refCount Then
-            endPos = arrStarts(i + 1)
+            arrEnds(i) = arrStarts(i + 1)
         Else
-            endPos = rngRefs.End
+            arrEnds(i) = rngRefs.End
         End If
-
-        Set itemRng = rngRefs.Duplicate
-        itemRng.SetRange Start:=startPos, End:=endPos
-        arrFmt(i) = itemRng.FormattedText    ' 保存带格式内容
     Next i
 
-    ' 按编号从小到大排序（冒泡），同步调整 arrFmt
+    ' 构造索引数组，用于按编号排序
+    ReDim arrIdx(1 To refCount)
+    For i = 1 To refCount
+        arrIdx(i) = i
+    Next i
+
+    ' 冒泡排序索引：根据 arrNums(arrIdx(*)) 升序
     For i = 1 To refCount - 1
         For j = i + 1 To refCount
-            If arrNums(j) < arrNums(i) Then
-                tmpNum = arrNums(i)
-                arrNums(i) = arrNums(j)
-                arrNums(j) = tmpNum
-
-                tmpFmt = arrFmt(i)
-                arrFmt(i) = arrFmt(j)
-                arrFmt(j) = tmpFmt
+            If arrNums(arrIdx(j)) < arrNums(arrIdx(i)) Then
+                tmp = arrIdx(i)
+                arrIdx(i) = arrIdx(j)
+                arrIdx(j) = tmp
             End If
         Next j
     Next i
 
-    ' 清空参考文献区域内容，并按排序后的顺序重新写回（带格式）
-    Set newRng = rngRefs.Duplicate
-    newRng.Text = ""                  ' 清空
-    newRng.Collapse wdCollapseStart
+    ' 用临时文档按排序后的顺序拼接“带格式”的参考文献内容
+    Set tmpDoc = Documents.Add
+    Set tmpRng = tmpDoc.Range
+    tmpRng.Collapse wdCollapseStart
 
     For i = 1 To refCount
-        newRng.FormattedText = arrFmt(i)
-        ' 把 newRng 移到刚插入内容的末尾，为下一个块做准备
-        newRng.SetRange Start:=newRng.End, End:=newRng.End
+        startPos = arrStarts(arrIdx(i))
+        endPos = arrEnds(arrIdx(i))
+
+        Set blockRng = rngRefs.Duplicate
+        blockRng.SetRange Start:=startPos, End:=endPos
+
+        tmpRng.Collapse wdCollapseEnd
+        tmpRng.FormattedText = blockRng.FormattedText
     Next i
+
+    ' 用临时文档中排序好的内容替换原参考文献区域
+    rngRefs.FormattedText = tmpDoc.Range.FormattedText
+    tmpDoc.Close wdDoNotSaveChanges
+End Sub
+
+
+' ===== 步骤5：保证参考文献区内所有 [x] 不是上标 =====
+Private Sub ForceNonSuperscriptInRefs(ByVal rngRefs As Range)
+    Dim rngFind As Range
+
+    Set rngFind = rngRefs.Duplicate
+
+    With rngFind.Find
+        .ClearFormatting
+        .Text = "\[[0-9]{1,3}\]"
+        .MatchWildcards = True
+        .Forward = True
+        .Wrap = wdFindStop
+        .Format = False
+    End With
+
+    Do While rngFind.Find.Execute
+        rngFind.Font.Superscript = False
+        rngFind.Collapse wdCollapseEnd
+    Loop
 End Sub
 ```
 
